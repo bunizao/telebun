@@ -29,7 +29,7 @@ async function update(force = false, msg: Api.Message) {
     await msg.edit({ text: "🔄 正在合并最新代码..." });
 
     console.log("\n📦 安装依赖...");
-    await execAsync("npm install");
+    await execAsync("bun install");
     await msg.edit({ text: "📦 正在安装依赖..." });
 
     console.log("\n✅ 更新完成。");

@@ -1,5 +1,4 @@
 import { execSync } from 'child_process';
-import { env } from 'process';
 
 /**
  * npm_install - 安装指定的 npm 包
@@ -14,6 +13,6 @@ export function npm_install(pkg: string, version?: string) {
     console.log(`Package "${pkg}" is already installed.`);
   } catch {
     console.log(`Installing ${fullName}...`);
-    execSync(`npm install ${fullName}`, { stdio: 'inherit' });
+    execSync(`bun add ${fullName}`, { stdio: 'inherit' });
   }
 }
