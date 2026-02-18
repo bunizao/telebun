@@ -4,9 +4,6 @@ import { Api } from "telegram";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { createConnection } from "net";
-import { createDirectoryInAssets } from "@utils/pathHelpers";
-import Database from "better-sqlite3";
-import path from "path";
 import { PromisedNetSockets } from "telegram/extensions";
 import * as dns from "dns";
 
