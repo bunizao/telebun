@@ -4,8 +4,10 @@
   "description": "",
   "scripts": {
     "start": "bun ./src/index.ts",
+    "start:minimal": "TB_PLUGIN_PROFILE=minimal bun ./src/index.ts",
     "tpm": "bun ./src/plugin/tpm.ts",
-    "dev": "NODE_ENV=development bun ./src/index.ts"
+    "dev": "NODE_ENV=development bun ./src/index.ts",
+    "dev:minimal": "NODE_ENV=development TB_PLUGIN_PROFILE=minimal bun ./src/index.ts"
   },
   "repository": {
     "type": "git",

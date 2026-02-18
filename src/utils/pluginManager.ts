@@ -17,11 +17,32 @@ type PluginEntry = {
   plugin: Plugin;
 };
 
+type PluginProfile = "full" | "minimal";
+
 const validPlugins: Plugin[] = [];
 const plugins: Map<string, PluginEntry> = new Map();
 
 const USER_PLUGIN_PATH = path.join(process.cwd(), "plugins");
 const DEFAUTL_PLUGIN_PATH = path.join(process.cwd(), "src", "plugin");
+
+const pluginProfile: PluginProfile =
+  process.env.TB_PLUGIN_PROFILE?.trim().toLowerCase() === "minimal"
+    ? "minimal"
+    : "full";
+
+const minimalBuiltinPluginFiles: ReadonlySet<string> = new Set([
+  "help.ts",
+  "status.ts",
+  "sysinfo.ts",
+  "reload.ts",
+  "prefix.ts",
+  "loglevel.ts",
+  "exec.ts",
+]);
+
+const enableAliasResolution = pluginProfile !== "minimal";
+let aliasResolutionAvailable = enableAliasResolution;
+let aliasResolutionWarned = false;
 
 let prefixes = [".", "。", "$"];
 const envPrefixes =
@@ -36,6 +57,11 @@ console.log(
     envPrefixes.length > 0 ? "" : "可"
   }使用环境变量 TB_PREFIX 覆盖, 多个前缀用空格分隔)`
 );
+console.log(
+  `[PLUGIN_PROFILE] ${pluginProfile} (${
+    pluginProfile === "minimal" ? "仅加载基础内置插件" : "加载全部插件"
+  })`
+);
 
 function getPrefixes(): string[] {
   return prefixes;
@@ -43,6 +69,26 @@ function getPrefixes(): string[] {
 
 function setPrefixes(newList: string[]): void {
   prefixes = newList;
+}
+
+function openAliasDB(): AliasDB | null {
+  if (!aliasResolutionAvailable) {
+    return null;
+  }
+  try {
+    return new AliasDB();
+  } catch (error) {
+    aliasResolutionAvailable = false;
+    if (!aliasResolutionWarned) {
+      aliasResolutionWarned = true;
+      console.warn(
+        `[ALIAS] Alias DB unavailable, alias resolution disabled: ${String(
+          error
+        )}`
+      );
+    }
+    return null;
+  }
 }
 
 function dynamicRequireWithDeps(filePath: string) {
@@ -56,13 +102,38 @@ function dynamicRequireWithDeps(filePath: string) {
 }
 
 async function setPlugins(basePath: string) {
-  const files = fs
+  const allFiles = fs
     .readdirSync(basePath)
     .filter((file) => file.endsWith(".ts"));
 
-  const aliasDB = new AliasDB();
-  const aliasList = aliasDB.list();
-  aliasDB.close();
+  let files = allFiles;
+  if (pluginProfile === "minimal") {
+    if (path.resolve(basePath) === path.resolve(USER_PLUGIN_PATH)) {
+      files = [];
+    } else if (path.resolve(basePath) === path.resolve(DEFAUTL_PLUGIN_PATH)) {
+      files = allFiles.filter((file) => minimalBuiltinPluginFiles.has(file));
+    }
+  }
+
+  if (files.length === 0) {
+    if (pluginProfile === "minimal") {
+      const source =
+        path.resolve(basePath) === path.resolve(USER_PLUGIN_PATH)
+          ? "用户插件"
+          : "内置插件";
+      console.log(`[PLUGIN_PROFILE] 已跳过 ${source} 目录: ${basePath}`);
+    }
+    return;
+  }
+
+  let aliasList: Array<{ original: string; final: string }> = [];
+  if (enableAliasResolution) {
+    const aliasDB = openAliasDB();
+    if (aliasDB) {
+      aliasList = aliasDB.list();
+      aliasDB.close();
+    }
+  }
 
   for await (const file of files) {
     const pluginPath = path.resolve(basePath, file);
@@ -81,16 +152,18 @@ async function setPlugins(basePath: string) {
       for (const cmd of cmds) {
         plugins.set(cmd, { plugin });
 
-        const relatedAliases = aliasList.filter(
-          (rec) => rec.final === cmd || rec.final.startsWith(cmd + " ")
-        );
+        if (aliasList.length > 0) {
+          const relatedAliases = aliasList.filter(
+            (rec) => rec.final === cmd || rec.final.startsWith(cmd + " ")
+          );
 
-        for (const rec of relatedAliases) {
-          plugins.set(rec.original, {
-            plugin,
-            original: cmd,
-            aliasFinal: rec.final,
-          });
+          for (const rec of relatedAliases) {
+            plugins.set(rec.original, {
+              plugin,
+              original: cmd,
+              aliasFinal: rec.final,
+            });
+          }
         }
       }
     }
@@ -133,16 +206,20 @@ function getCommandFromMessage(
   const parts = rest.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return null;
 
-  const aliasDB = new AliasDB();
   let aliasCandidate: string | null = null;
-  for (let i = parts.length; i >= 1; i--) {
-    const candidate = parts.slice(0, i).join(" ");
-    if (aliasDB.get(candidate)) {
-      aliasCandidate = candidate;
-      break;
+  if (enableAliasResolution) {
+    const aliasDB = openAliasDB();
+    if (aliasDB) {
+      for (let i = parts.length; i >= 1; i--) {
+        const candidate = parts.slice(0, i).join(" ");
+        if (aliasDB.get(candidate)) {
+          aliasCandidate = candidate;
+          break;
+        }
+      }
+      aliasDB.close();
     }
   }
-  aliasDB.close();
 
   if (aliasCandidate) {
     return aliasCandidate;
