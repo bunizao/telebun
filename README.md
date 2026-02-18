@@ -380,6 +380,15 @@ bun run dev
 
 </div>
 
+### 🧰 **最小插件模式**
+
+```bash
+# 仅加载基础内置插件（适合 Bun 迁移期最小可运行）
+bun run start:minimal
+```
+
+> 也可以通过环境变量控制：`TB_PLUGIN_PROFILE=minimal bun run start`
+
 ## 📚 相关链接
 
 <div align="center">
