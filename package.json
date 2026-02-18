@@ -3,9 +3,9 @@
   "version": "0.2.7",
   "description": "",
   "scripts": {
-    "start": "tsx -r tsconfig-paths/register ./src/index.ts",
-    "tpm": "tsx -r tsconfig-paths/register ./src/plugin/tpm.ts",
-    "dev": "NODE_ENV=development tsx -r tsconfig-paths/register ./src/index.ts"
+    "start": "bun ./src/index.ts",
+    "tpm": "bun ./src/plugin/tpm.ts",
+    "dev": "NODE_ENV=development bun ./src/index.ts"
   },
   "repository": {
     "type": "git",
@@ -48,8 +48,6 @@
     "sharp": "^0.34.3",
     "ssh2": "^1.15.0",
     "telegram": "^2.26.22",
-    "tsconfig-paths": "^4.2.0",
-    "tsx": "^4.20.4",
     "typescript": "^5.9.2"
   }
 }
